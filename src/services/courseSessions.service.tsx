@@ -1,54 +1,29 @@
-import CourseSession from '../models/courseSessionModel';
-import * as fs from 'fs/promises';
-import path from 'path';
+import CourseSessionModel from '../models/courseSessionModel';
+import { StudentModel } from '../models/studentModel';
 
-const DATA_FILE_PATH = path.join(__dirname, '../data/courseSessions.json');
+const courseSessionsData: CourseSessionModel[] = require('../data/courseSessions.json'); 
 
-async function loadCourseSessionsFromFile(): Promise<CourseSession[]> {
-  try {
-    const data = await fs.readFile(DATA_FILE_PATH, 'utf8');
-    return JSON.parse(data);
-  } catch (error) {
-    console.error("Error loading course sessions from file:", error);
-    return [];
-  }
-}
+let courseSessions: CourseSessionModel[] = courseSessionsData;
 
-async function saveCourseSessionsToFile(courseSessions: CourseSession[]): Promise<void> {
-  try {
-    await fs.writeFile(DATA_FILE_PATH, JSON.stringify(courseSessions, null, 2));
-  } catch (error) {
-    console.error("Error saving course sessions to file:", error);
-    throw error;
-  }
-}
-
-let courseSessions: CourseSession[] = [];
-loadCourseSessionsFromFile().then(data => {
-  courseSessions = data;
-});
-
-export async function getCourseSessions(): Promise<CourseSession[]> {
+export async function getCourseSessions(): Promise<CourseSessionModel[]> {
   return courseSessions;
 }
 
-export async function getCourseSessionById(id: number): Promise<CourseSession | undefined> {
+export async function getCourseSessionById(id: number): Promise<CourseSessionModel | undefined> {
   return courseSessions.find(session => session.id === id);
 }
 
-export async function createCourseSession(session: CourseSession): Promise<CourseSession> {
-  const newId = Math.max(...courseSessions.map(session => session.id)) + 1;
+export async function createCourseSession(session: CourseSessionModel): Promise<CourseSessionModel> {
+  const newId = Math.max(...courseSessions.map(session => session.id)) + 1; // Generate new ID
   const newSession = { ...session, id: newId };
   courseSessions = [...courseSessions, newSession];
-  await saveCourseSessionsToFile(courseSessions);
   return newSession;
 }
 
-export async function updateCourseSession(id: number, updatedSession: CourseSession): Promise<CourseSession | undefined> {
+export async function updateCourseSession(id: number, updatedSession: CourseSessionModel): Promise<CourseSessionModel | undefined> {
   const index = courseSessions.findIndex(session => session.id === id);
   if (index !== -1) {
     courseSessions[index] = updatedSession;
-    await saveCourseSessionsToFile(courseSessions);
     return updatedSession;
   } else {
     return undefined;
@@ -57,5 +32,54 @@ export async function updateCourseSession(id: number, updatedSession: CourseSess
 
 export async function deleteCourseSession(id: number): Promise<void> {
   courseSessions = courseSessions.filter(session => session.id !== id);
-  await saveCourseSessionsToFile(courseSessions);
+}
+
+export async function assignProfessorToCourseSession(sessionId: number, professorId: number): Promise<CourseSessionModel | undefined> {
+  const session = await getCourseSessionById(sessionId);
+  if (session) {
+    session.professor.id = professorId;
+    return session;
+  } else {
+    return undefined;
+  }
+}
+
+export async function getCourseSessionsByCity(city: string): Promise<CourseSessionModel[]>
+{
+  return Promise.resolve(courseSessions.filter(session => session.city === city));
+}
+
+export function getCourseSessionsSortedByDate(): CourseSessionModel[] {
+  return courseSessions.sort((a, b) => a.date.getTime() - b.date.getTime());
+}
+
+export function getCourseSessionsByMonth(month: number, year: number): CourseSessionModel[] {
+  return courseSessions.filter(session => session.date.getMonth() === month && session.date.getFullYear() === year);
+}
+
+export function countStudentsWithMoreThanXCourses(x: number): number {
+  const studentCourseCounts: Record<number, number> = courseSessions.reduce((acc, session) => {
+    session.studentGroup.students.forEach((student: StudentModel) => {
+      acc[student.id] = (acc[student.id] || 0) + 1;
+    });
+    return acc;
+  }, {} as Record<number, number>);
+
+  return Object.values(studentCourseCounts).filter(count => count > x).length;
+}
+
+export async function assignGroupToCourseSession(sessionId: number, groupId: number): Promise<CourseSessionModel | undefined> {
+  const session = await getCourseSessionById(sessionId);
+  if (session) {
+    session.studentGroup.id = groupId;
+    return session;
+  } else {
+    return undefined;
+  }
+}
+
+export function getCourseSessionWithMostStudents(): CourseSessionModel {
+  return courseSessions.reduce((acc, session) => {
+    return session.studentGroup.students.length > acc.studentGroup.students.length ? session : acc;
+  });
 }

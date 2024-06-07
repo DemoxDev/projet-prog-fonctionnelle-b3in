@@ -1,35 +1,9 @@
 import { StudentGroupModel } from '../models/studentGroupModel';
-import * as fs from 'fs/promises';
-import path from 'path';
+import { getCourseSessionById } from './courseSessions.service';
 
-const DATA_FILE_PATH = path.join(__dirname, '../data/studentGroups.json');
+const studentGroupsData: StudentGroupModel[] = require('../data/studentGroups.json'); 
 
-// Charger données JSON
-async function loadStudentGroupsFromFile(): Promise<StudentGroupModel[]> {
-  try {
-    const data = await fs.readFile(DATA_FILE_PATH, 'utf8');
-    return JSON.parse(data);
-  } catch (error) {
-    console.error("Error loading student groups from file:", error);
-    return [];
-  }
-}
-
-// Enregistrer vers JSON
-async function saveStudentGroupsToFile(studentGroups: StudentGroupModel[]): Promise<void> {
-  try {
-    await fs.writeFile(DATA_FILE_PATH, JSON.stringify(studentGroups, null, 2));
-  } catch (error) {
-    console.error("Error saving student groups to file:", error);
-    throw error;
-  }
-}
-
-// Charger données JSON au démarrage
-let studentGroups: StudentGroupModel[] = []; // Initialiser en tant que tableau vide
-loadStudentGroupsFromFile().then(data => {
-  studentGroups = data;
-});
+let studentGroups: StudentGroupModel[] = studentGroupsData;
 
 export async function getStudentGroups(): Promise<StudentGroupModel[]> {
   return studentGroups;
@@ -42,8 +16,7 @@ export async function getStudentGroupById(id: number): Promise<StudentGroupModel
 export async function createStudentGroup(studentGroup: StudentGroupModel): Promise<StudentGroupModel> {
   const newId = Math.max(...studentGroups.map(group => group.id)) + 1;
   const newGroup = { ...studentGroup, id: newId };
-  studentGroups = [...studentGroups, newGroup];
-  await saveStudentGroupsToFile(studentGroups); // Enregistrer après création
+  studentGroups = [...studentGroups, newGroup]; 
   return newGroup;
 }
 
@@ -51,14 +24,29 @@ export async function updateStudentGroup(id: number, updatedStudentGroup: Studen
   const index = studentGroups.findIndex(group => group.id === id);
   if (index !== -1) {
     studentGroups[index] = updatedStudentGroup;
-    await saveStudentGroupsToFile(studentGroups); // Enregistrer après maj
     return updatedStudentGroup;
   } else {
-    return undefined; // Groupe non trouvé
+    return undefined;
   }
 }
 
 export async function deleteStudentGroup(id: number): Promise<void> {
   studentGroups = studentGroups.filter(group => group.id !== id);
-  await saveStudentGroupsToFile(studentGroups); // Enregistrer après suppression
 }
+
+export async function assignGroupToCourseSession(sessionId: number, groupId: number): Promise<StudentGroupModel | undefined> {
+  const session = await getCourseSessionById(sessionId);
+  const group = await getStudentGroupById(groupId);
+  if (session && group) {
+    session.studentGroup = group;
+    return group;
+  } else {
+    return undefined;
+  }
+}
+
+export async function getStudentGroupByCourseSessionId(sessionId: number): Promise<StudentGroupModel | undefined> {
+  const session = await getCourseSessionById(sessionId);
+  return session?.studentGroup;
+}
+

@@ -1,35 +1,11 @@
+import courseSessionModel from '../models/courseSessionModel';
 import { StudentModel } from '../models/studentModel';
-import * as fs from 'fs/promises';
-import path from 'path';
+import { getCourseSessionsByCity } from './courseSessions.service';
 
-const DATA_FILE_PATH = path.join(__dirname, '../data/students.json');
+const studentsData: StudentModel[] = require('../data/students.json'); // Replace with your actual JSON file path
 
-// Charger données JSON
-async function loadStudentsFromFile(): Promise<StudentModel[]> {
-  try {
-    const data = await fs.readFile(DATA_FILE_PATH, 'utf8');
-    return JSON.parse(data);
-  } catch (error) {
-    console.error("Error loading students from file:", error);
-    return []; // Return empty array if loading fails
-  }
-}
+let students: StudentModel[] = studentsData; // Initialize with loaded data
 
-// Save students to JSON
-async function saveStudentsToFile(students: StudentModel[]): Promise<void> {
-  try {
-    await fs.writeFile(DATA_FILE_PATH, JSON.stringify(students, null, 2));
-  } catch (error) {
-    console.error("Error saving students to file:", error);
-    throw error; // Re-throw error to be handled by component
-  }
-}
-
-// Load students on initial render
-let students: StudentModel[] = []; 
-loadStudentsFromFile().then(data => {
-  students = data;
-});
 
 export async function getStudents(): Promise<StudentModel[]> {
   return students;
@@ -43,7 +19,6 @@ export async function createStudent(student: StudentModel): Promise<StudentModel
   const newId = Math.max(...students.map(student => student.id)) + 1;
   const newStudent = { ...student, id: newId };
   students = [...students, newStudent];
-  await saveStudentsToFile(students); // Enregistrer après création
   return newStudent;
 }
 
@@ -51,7 +26,6 @@ export async function updateStudent(id: number, updatedStudent: StudentModel): P
   const index = students.findIndex(student => student.id === id);
   if (index !== -1) {
     students[index] = updatedStudent;
-    await saveStudentsToFile(students); // Enregistrer après maj
     return updatedStudent;
   } else {
     return undefined; // Student non trouvé
@@ -60,6 +34,34 @@ export async function updateStudent(id: number, updatedStudent: StudentModel): P
 
 export async function deleteStudent(id: number): Promise<void> {
   students = students.filter(student => student.id !== id);
-  await saveStudentsToFile(students); // Enregistrer après suppression
 }
 
+export function getStudentsByGender(gender: 'M' | 'F'): StudentModel[] {
+    return students.filter(student => student.gender === gender);
+}
+
+// Créer une fonction qui récupere tout les étudiants ayant des cours dans une certaine ville (ex:Paris), tu peux prendre en compte getCourseSessionsByCity
+/*export async function getCourseSessionsByCity(city: string): Promise<CourseSessionModel[]>
+{
+  return Promise.resolve(courseSessions.filter(session => session.city === city));
+}
+  */
+
+export async function getStudentsByCity(city: string): Promise<StudentModel[]>
+{
+  const sessionsByCity: courseSessionModel[] = await getCourseSessionsByCity(city);
+  const studentsByCity: StudentModel[] = [];
+  sessionsByCity.forEach(session => {
+    session.studentGroup.students.forEach(student => {
+      if (!studentsByCity.includes(student)) {
+        studentsByCity.push(student);
+      }
+    });
+  });
+  return studentsByCity;
+}
+
+export async function getStudentsByString(searchString: string): Promise<StudentModel[]>
+{
+  return students.filter(student => student.firstName.includes(searchString) || student.lastName.includes(searchString));
+}
