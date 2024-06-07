@@ -1,84 +1,65 @@
-import { Student } from '../models/studentModel';
+import { StudentModel } from '../models/studentModel';
+import * as fs from 'fs/promises';
+import path from 'path';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL;
+const DATA_FILE_PATH = path.join(__dirname, '../data/students.json');
 
-export async function getStudents(): Promise<Student[]> {
+// Charger données JSON
+async function loadStudentsFromFile(): Promise<StudentModel[]> {
   try {
-    const response = await fetch(`${API_BASE_URL}/students`);
-    if (!response.ok) {
-      throw new Error(`HTTP error! Status: ${response.status}`);
-    }
-    return await response.json();
+    const data = await fs.readFile(DATA_FILE_PATH, 'utf8');
+    return JSON.parse(data);
   } catch (error) {
-    console.error("Error fetching students:", error);
-    throw error;
+    console.error("Error loading students from file:", error);
+    return []; // Return empty array if loading fails
   }
 }
 
-export async function getStudentById(id: number): Promise<Student> {
+// Save students to JSON
+async function saveStudentsToFile(students: StudentModel[]): Promise<void> {
   try {
-    const response = await fetch(`${API_BASE_URL}/students/${id}`);
-    if (!response.ok) {
-      throw new Error(`HTTP error! Status: ${response.status}`);
-    }
-    return await response.json();
+    await fs.writeFile(DATA_FILE_PATH, JSON.stringify(students, null, 2));
   } catch (error) {
-    console.error("Error fetching student by ID:", error);
-    throw error;
+    console.error("Error saving students to file:", error);
+    throw error; // Re-throw error to be handled by component
   }
 }
 
-export async function createStudent(student: Student): Promise<Student> {
-  try {
-    const response = await fetch(`${API_BASE_URL}/students`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(student),
-    });
+// Load students on initial render
+let students: StudentModel[] = []; 
+loadStudentsFromFile().then(data => {
+  students = data;
+});
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! Status: ${response.status}`);
-    }
-    return await response.json();
-  } catch (error) {
-    console.error("Error creating student:", error);
-    throw error;
-  }
+export async function getStudents(): Promise<StudentModel[]> {
+  return students;
 }
 
-export async function updateStudent(id: number, updatedStudent: Student): Promise<Student> {
-  try {
-    const response = await fetch(`${API_BASE_URL}/students/${id}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(updatedStudent),
-    });
+export async function getStudentById(id: number): Promise<StudentModel | undefined> {
+  return students.find(student => student.id === id);
+}
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! Status: ${response.status}`);
-    }
-    return await response.json();
-  } catch (error) {
-    console.error("Error updating student:", error);
-    throw error;
+export async function createStudent(student: StudentModel): Promise<StudentModel> {
+  const newId = Math.max(...students.map(student => student.id)) + 1;
+  const newStudent = { ...student, id: newId };
+  students = [...students, newStudent];
+  await saveStudentsToFile(students); // Enregistrer après création
+  return newStudent;
+}
+
+export async function updateStudent(id: number, updatedStudent: StudentModel): Promise<StudentModel | undefined> {
+  const index = students.findIndex(student => student.id === id);
+  if (index !== -1) {
+    students[index] = updatedStudent;
+    await saveStudentsToFile(students); // Enregistrer après maj
+    return updatedStudent;
+  } else {
+    return undefined; // Student non trouvé
   }
 }
 
 export async function deleteStudent(id: number): Promise<void> {
-  try {
-    const response = await fetch(`${API_BASE_URL}/students/${id}`, {
-      method: 'DELETE',
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! Status: ${response.status}`);
-    }
-  } catch (error) {
-    console.error("Error deleting student:", error);
-    throw error;
-  }
+  students = students.filter(student => student.id !== id);
+  await saveStudentsToFile(students); // Enregistrer après suppression
 }
+

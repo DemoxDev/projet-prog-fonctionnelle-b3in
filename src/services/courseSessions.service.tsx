@@ -1,84 +1,61 @@
-import CourseSession from "../models/courseSessionModel"
+import CourseSession from '../models/courseSessionModel';
+import * as fs from 'fs/promises';
+import path from 'path';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL;
+const DATA_FILE_PATH = path.join(__dirname, '../data/courseSessions.json');
 
-export async function getCourseSessions(): Promise<CourseSession[]> {
+async function loadCourseSessionsFromFile(): Promise<CourseSession[]> {
   try {
-    const response = await fetch(`${API_BASE_URL}/`);
-    if (!response.ok) {
-      throw new Error(`HTTP error! Status: ${response.status}`);
-    }
-    return await response.json();
+    const data = await fs.readFile(DATA_FILE_PATH, 'utf8');
+    return JSON.parse(data);
   } catch (error) {
-    console.error("Error fetching course sessions:", error);
-    throw error; 
+    console.error("Error loading course sessions from file:", error);
+    return [];
   }
 }
 
-export async function getCourseSessionById(id: number): Promise<CourseSession> {
+async function saveCourseSessionsToFile(courseSessions: CourseSession[]): Promise<void> {
   try {
-    const response = await fetch(`${API_BASE_URL}/${id}`);
-    if (!response.ok) {
-      throw new Error(`HTTP error! Status: ${response.status}`);
-    }
-    return await response.json();
+    await fs.writeFile(DATA_FILE_PATH, JSON.stringify(courseSessions, null, 2));
   } catch (error) {
-    console.error("Error fetching course session by ID:", error);
+    console.error("Error saving course sessions to file:", error);
     throw error;
   }
+}
+
+let courseSessions: CourseSession[] = [];
+loadCourseSessionsFromFile().then(data => {
+  courseSessions = data;
+});
+
+export async function getCourseSessions(): Promise<CourseSession[]> {
+  return courseSessions;
+}
+
+export async function getCourseSessionById(id: number): Promise<CourseSession | undefined> {
+  return courseSessions.find(session => session.id === id);
 }
 
 export async function createCourseSession(session: CourseSession): Promise<CourseSession> {
-  try {
-    const response = await fetch(`${API_BASE_URL}/`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(session),
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! Status: ${response.status}`);
-    }
-    return await response.json();
-  } catch (error) {
-    console.error("Error creating course session:", error);
-    throw error;
-  }
+  const newId = Math.max(...courseSessions.map(session => session.id)) + 1;
+  const newSession = { ...session, id: newId };
+  courseSessions = [...courseSessions, newSession];
+  await saveCourseSessionsToFile(courseSessions);
+  return newSession;
 }
 
-export async function updateCourseSession(id: number, updatedSession: CourseSession): Promise<CourseSession> {
-  try {
-    const response = await fetch(`${API_BASE_URL}/${id}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(updatedSession),
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! Status: ${response.status}`);
-    }
-    return await response.json();
-  } catch (error) {
-    console.error("Error updating course session:", error);
-    throw error;
+export async function updateCourseSession(id: number, updatedSession: CourseSession): Promise<CourseSession | undefined> {
+  const index = courseSessions.findIndex(session => session.id === id);
+  if (index !== -1) {
+    courseSessions[index] = updatedSession;
+    await saveCourseSessionsToFile(courseSessions);
+    return updatedSession;
+  } else {
+    return undefined;
   }
 }
 
 export async function deleteCourseSession(id: number): Promise<void> {
-  try {
-    const response = await fetch(`${API_BASE_URL}/${id}`, {
-      method: 'DELETE',
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! Status: ${response.status}`);
-    }
-  } catch (error) {
-    console.error("Error deleting course session:", error);
-    throw error;
-  }
+  courseSessions = courseSessions.filter(session => session.id !== id);
+  await saveCourseSessionsToFile(courseSessions);
 }

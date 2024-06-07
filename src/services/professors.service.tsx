@@ -1,84 +1,63 @@
-import { Professor } from '../models/professorModel';
+import { ProfessorModel } from '../models/professorModel';
+import * as fs from 'fs/promises';
+import path from 'path';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL;
+const DATA_FILE_PATH = path.join(__dirname, '../data/professors.json'); // Path to the professors JSON file
 
-export async function getProfessors(): Promise<Professor[]> {
+async function loadProfessorsFromFile(): Promise<ProfessorModel[]> {
   try {
-    const response = await fetch(`${API_BASE_URL}/professors`);
-    if (!response.ok) {
-      throw new Error(`HTTP error! Status: ${response.status}`);
-    }
-    return await response.json();
+    const data = await fs.readFile(DATA_FILE_PATH, 'utf8');
+    return JSON.parse(data);
   } catch (error) {
-    console.error("Error fetching professors:", error);
+    console.error("Error loading professors from file:", error);
+    return [];
+  }
+}
+
+async function saveProfessorsToFile(professors: ProfessorModel[]): Promise<void> {
+  try {
+    await fs.writeFile(DATA_FILE_PATH, JSON.stringify(professors, null, 2));
+  } catch (error) {
+    console.error("Error saving professors to file:", error);
     throw error;
   }
 }
 
-export async function getProfessorById(id: number): Promise<Professor> {
-  try {
-    const response = await fetch(`${API_BASE_URL}/professors/${id}`);
-    if (!response.ok) {
-      throw new Error(`HTTP error! Status: ${response.status}`);
-    }
-    return await response.json();
-  } catch (error) {
-    console.error("Error fetching professor by ID:", error);
-    throw error;
-  }
+// Load professors on initial render
+let professors: ProfessorModel[] = []; 
+loadProfessorsFromFile().then(data => {
+  professors = data;
+});
+
+export async function getProfessors(): Promise<ProfessorModel[]> {
+  return professors;
 }
 
-export async function createProfessor(professor: Professor): Promise<Professor> {
-  try {
-    const response = await fetch(`${API_BASE_URL}/professors`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(professor),
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! Status: ${response.status}`);
-    }
-    return await response.json();
-  } catch (error) {
-    console.error("Error creating professor:", error);
-    throw error;
-  }
+export async function getProfessorById(id: number): Promise<ProfessorModel | undefined> {
+  return professors.find(professor => professor.id === id);
 }
 
-export async function updateProfessor(id: number, updatedProfessor: Professor): Promise<Professor> {
-  try {
-    const response = await fetch(`${API_BASE_URL}/professors/${id}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(updatedProfessor),
-    });
+export async function createProfessor(professor: ProfessorModel): Promise<ProfessorModel> {
+  const newId = Math.max(...professors.map(professor => professor.id)) + 1;
+  const newProfessor = { ...professor, id: newId };
+  professors = [...professors, newProfessor];
+  await saveProfessorsToFile(professors);
+  return newProfessor;
+}
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! Status: ${response.status}`);
-    }
-    return await response.json();
-  } catch (error) {
-    console.error("Error updating professor:", error);
-    throw error;
+export async function updateProfessor(id: number, updatedProfessor: ProfessorModel): Promise<ProfessorModel | undefined> {
+  const index = professors.findIndex(professor => professor.id === id);
+  if (index !== -1) {
+    professors[index] = updatedProfessor;
+    await saveProfessorsToFile(professors);
+    return updatedProfessor;
+  } else {
+    return undefined;
   }
 }
 
 export async function deleteProfessor(id: number): Promise<void> {
-  try {
-    const response = await fetch(`${API_BASE_URL}/professors/${id}`, {
-      method: 'DELETE',
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! Status: ${response.status}`);
-    }
-  } catch (error) {
-    console.error("Error deleting professor:", error);
-    throw error;
-  }
+  professors = professors.filter(professor => professor.id !== id);
+  await saveProfessorsToFile(professors);
 }
+
