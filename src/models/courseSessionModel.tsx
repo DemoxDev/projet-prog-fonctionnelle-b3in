@@ -1,11 +1,11 @@
-import { Professor } from "./professorModel";
-import { StudentGroup } from "./studentGroupModel";
+import { ProfessorModel } from "./professorModel";
+import { StudentGroupModel } from "./studentGroupModel";
 
-export default interface CourseSession {
+export default interface courseSessionModel {
   id: number;
   name: string;
-  professor: Professor;
-  studentGroup: StudentGroup;
+  professor: ProfessorModel;
+  studentGroup: StudentGroupModel;
   city: string;
   date: Date;
 }

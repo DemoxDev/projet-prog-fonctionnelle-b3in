@@ -1,8 +1,8 @@
-import { Student } from "./studentModel";
+import { StudentModel } from "./studentModel";
 
-export interface StudentGroup {
+export interface StudentGroupModel {
   id: number;
   name: string;
-  students: Student[];
+  students: StudentModel[];
   isMixed?: boolean;
 }
