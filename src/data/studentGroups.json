@@ -1,0 +1,13 @@
+[
+    {
+      "id": 1,
+      "name": "Groupe A",
+      "students": [1, 2, 3, 4]
+    },
+    {
+      "id": 2,
+      "name": "Groupe B",
+      "students": []
+    }
+  ]
+  

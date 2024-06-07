@@ -1,0 +1,19 @@
+[
+    {
+      "id": 1,
+      "name": "React JS 101",
+      "professor": 1,
+      "studentGroup": 1,
+      "city": "Paris",
+      "date": "2024-09-15"
+    },
+    {
+      "id": 2,
+      "name": "TypeScript avancé",
+      "professor": 2,
+      "studentGroup": 2,
+      "city": "Villejuif",
+      "date": "2024-10-01"
+    }
+  ]
+  
