@@ -1,301 +1,186 @@
-import { useEffect, useState } from "react";
-import logo from "./logo.svg";
-import "./App.css";
-import { match, ok } from "assert";
-import MatchModel from "./models/matchModel";
-import JoueurModel from "./models/joueurModel";
-import MatchManagerPage from "./pages/matchManager";
+import React, { useState, useEffect } from 'react';
+import { ChakraProvider, Box, Heading, Select, Input, Stack, Text, useToast } from '@chakra-ui/react';
+import { 
+  getStudents, getStudentById, createStudent, updateStudent, deleteStudent, getStudentsByGender, getStudentsByCity, getStudentsByString
+} from './services/students.service'; 
+import { 
+  getProfessors, getProfessorById, createProfessor, updateProfessor, deleteProfessor, getTop3RecurringStudentsPerProfessor
+} from './services/professors.service'; 
+import { 
+  getStudentGroups, getStudentGroupById, createStudentGroup, updateStudentGroup, deleteStudentGroup, assignGroupToCourseSession, getStudentGroupByCourseSessionId
+} from './services/studentGroups.service'; 
+import { 
+  getCourseSessions, getCourseSessionById, createCourseSession, updateCourseSession, deleteCourseSession, assignProfessorToCourseSession, getCourseSessionsSortedByDate, getCourseSessionsByMonth, countStudentsWithMoreThanXCourses, getCourseSessionWithMostStudents, getCourseSessionsByCity
 
+} from './services/courseSessions.service';
+import { ProfessorModel } from './models/professorModel';
+import CourseSessionModel from './models/courseSessionModel';
+import { StudentModel } from './models/studentModel';
+import { StudentGroupModel } from './models/studentGroupModel';
+import { DataTable } from './components/DataTable';
+import { AnimatePresence, motion } from 'framer-motion';
+
+// PAS FINI
 function App() {
-  const [clients, setClients] = useState([
-    { nom: "Dupont", prenom: "Jean", age: 52 },
-    { nom: "Dupont", prenom: "Marie", age: 46 },
-    { nom: "Durant", prenom: "Jean Marie", age: 35 },
-  ]);
-  const [x, setX] = useState<number>(0);
-  const [numbers, setNumbers] = useState<number[]>([1, 2, 3, 4, 5]);
-  const [typing, setTyping] = useState<string>("");
-
-  const [joueurs, setJoueurs] = useState<JoueurModel[]>([
-    {
-      id: 1,
-      nom: "Jean",
-      taille: 178,
-    },
-    { id: 2, nom: "Martin", taille: 182 },
-    { id: 3, nom: "Jean", taille: 193 },
-  ]);
-
-  const [joueurs_matchs, setJoueurs_matchs] = useState([
-    {
-      id: 1,
-      match_id: 1,
-      joueur_id: 1,
-    },
-    { id: 2, match_id: 1, joueur_id: 2 },
-  ]);
-  const [matches, setMatches] = useState<MatchModel[]>([]);
+  const [students, setStudents] = useState<StudentModel[]>([]);
+  const [courseSessions, setCourseSessions] = useState<CourseSessionModel[]>([]);
+  const [studentGroups, setStudentGroups] = useState<StudentGroupModel[]>([]);
+  const [professors, setProfessors] = useState<ProfessorModel[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [action, setAction] = useState<string>('students');
+  const [filterText, setFilterText] = useState<string>('');
+  const [filteredData, setFilteredData] = useState<any[]>([]);
+  const toast = useToast();
 
   useEffect(() => {
-    //
-    var matchs = [
-      {
-        id: 1,
-        ville: "Paris",
-        date: "12/01/2024",
-        joueurs: [
-          {
-            id: 1,
-            nom: "Jean",
-            taille: 178,
-          },
-          { id: 2, nom: "Martin", taille: 182 },
-        ],
-      },
-      {
-        id: 2,
-        ville: "Lyon",
-        date: "12/05/2024",
-        joueurs: [
-          {
-            id: 1,
-            nom: "Jean",
-            taille: 178,
-          },
-          { id: 3, nom: "Jean", taille: 193 },
-        ],
-      },
-    ];
-    setMatches(matchs);
+    const fetchData = async () => {
+      try {
+        const studentsData = await getStudents();
+        const courseSessionsData = await getCourseSessions();
+        const studentGroupsData = await getStudentGroups();
+        const professorsData = await getProfessors();
+        setStudents(studentsData);
+        setCourseSessions(courseSessionsData);
+        setStudentGroups(studentGroupsData);
+        setProfessors(professorsData);
+      } catch (error) {
+        console.error("Error fetching data:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-    //tD();
-    q3();
-    rSum([1,2,3,4,5],0,0);
+    fetchData();
   }, []);
 
-  const q3 = () => {
-    var res: JoueurModel[] = [];
-    joueurs.forEach(
-      (joueur) => {
-        joueur.taille > 180 ? (
-          res.push({ nom: joueur.nom, taille: joueur.taille })
-        ) : (
-          <></>
-        );
-        //return joueur.taille > 180
-      }
-      // [{"nom" :"...", "taille" : ...}, ...]
-    );
-    console.log("q3");
-    console.log(res);
+  const title = "Gestion d'école";
+
+  const tableVariants = {
+    hidden: { opacity: 0 },
+    visible: { opacity: 1, transition: { staggerChildren: 0.1 } }
   };
 
-  const q4 = (id: number) => {
-    console.log(
-      matches.find((value) => {
-        return value.id === id;
-      })?.joueurs.length
-    );
+  const rowVariants = {
+    hidden: { opacity: 0 },
+    visible: { opacity: 1 },
   };
 
-  const q5 = (id: number) => {
-    console.log(
-      Object.values(
-        matches
-        .find((value) => {
-          return value.id === id;
-        })?.joueurs as JoueurModel[]
-      ).map((el) => {
-        return { nom: el["nom"], taille: el["taille"] };
-      })
-    );
+  const handleActionChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setAction(e.target.value);
+    setFilterText(''); 
   };
 
-  const q6 = () => {
-    var noms :Object[] = []
-    console.log(matches)
-    matches.forEach((match,indexm) =>  {
-      var joueurs = match.joueurs
-      joueurs.forEach((j ) => {
-        matches.forEach((v,i) => {
-          if(i>indexm){
-            var jres = v.joueurs.find((jf) =>  j.id === jf.id)
-            jres ? noms.push(jres) : <></>
+  const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFilterText(e.target.value);
+  };
+
+  const handleAction = async (action: string, filterText: string) => {
+    setIsLoading(true);
+  
+    try {
+      let data: any[] | ProfessorModel | ProfessorModel[] | undefined; // Initialize data as an empty array
+  
+      switch (action) {
+        case 'getStudentById':
+        case 'updateStudent':
+        case 'deleteStudent':
+          if (!isNaN(parseInt(filterText, 10))) {
+            const student = await (action === 'getStudentById' ? getStudentById : action === 'updateStudent' ? updateStudent : deleteStudent)(parseInt(filterText, 10));
+            data = student ? [student] : [];
+          } else {
+            toast({ title: "Please enter a valid numeric ID", status: "error", isClosable: true });
           }
-        })
-      })
-
-      
-  })
-  var res = new Set(noms)
-      //utiliser la reponse de la question 1
-      
-      console.log(res)
-}
-
-  const q6Itératif = () => {
-    var noms : string[] = []
-    for(var i=0;i<matches.length;i++)
-      for (var j of matches[i].joueurs) 
-        for(var k=i+i; matches.length;k++)
-          for(var j1 of matches[k].joueurs)
-          if(j.id === j1.id){
-            noms.push(j.nom)
-          
-        
-      
-    }
-    var res = new Set(noms)
-      console.log(res)
-   };
-
-   const exIteratif = () => {
-    const nums = [1,2,3,4,5]
-    var sum = 0
-    for(var n of nums) {
-      sum+=n
-    }
-    console.log(sum)
-   }
-   
-   const rSum = (nums: number[], i: number, sum: number) => {
-
-    if(i === nums.length) {
-      console.log(sum)
-      return sum
-    }
-      else {
-        rSum(nums,i+1, sum+nums[i])
-    }
-   }
-
-  /*
-  const setXWithLog = (newValueX: number) => {
-    setX(newValueX)
-    console.log(newValueX)
-  }
-*/
-  const tD = () => {
-    //liste distincte des nom des joueurs
-    var joueursNoms: Array<string> = [];
-
-    joueurs.forEach((value) => {
-      joueursNoms.push(value.nom);
-    });
-
-    console.error(joueursNoms);
-
-    var result: string[] = [];
-
-    joueursNoms.forEach((value) => {
-      if (result.indexOf(value) === -1) {
-        result.push(value);
-      } else {
+          break;
+        // ... same cases for professor, studentGroup and courseSession (get[Entity]ById, update[Entity], delete[Entity])
+        case 'getStudents':
+          data = filterText ? await getStudentsByString(filterText) : students;
+          break;
+        case 'getProfessors':
+          data = filterText ? await getProfessorById(filterText) : professors;
+          break;
+        case 'getStudentGroups':
+          data = filterText ? await getStudentGroups() : studentGroups; // Filter student groups later if needed
+          break;
+        case 'getCourseSessions':
+          data = filterText ? await getCourseSessions() : courseSessions; // Filter course sessions later if needed
+          break;
+        // ... (your create cases)
+        case 'getStudentsByCity':
+          data = await getStudentsByCity(filterText);
+          break;
+        case 'getStudentsInMultipleGroups':
+          data = await getStudentsInMultipleGroups();
+          break;
+        case 'getProfessorsInMultipleSessions':
+          data = await getProfessorsInMultipleSessions();
+          break;
+        case 'getCourseSessionsByCity':
+          data = await getCourseSessionsByCity(filterText);
+          break;
+        case 'getCourseSessionsSortedByDate':
+          data = await getCourseSessionsSortedByDate();
+          break;
+        case 'getCourseSessionsByMonth':
+          // get month and year from filterText, then call getCourseSessionsByMonth
+          break;
+        case 'countStudentsWithMoreThanXCourses':
+          const x = parseInt(filterText, 10);
+          if (!isNaN(x) && x > 1) {
+            data = [{ result: await countStudentsWithMoreThanXCourses(x) }];
+          } else {
+            toast({ title: "Please enter a valid number greater than 1", status: "error", isClosable: true });
+          }
+          break;
+        case 'doesProfessorTeachInCity':
+          // get professor id and city from filterText, then call doesProfessorTeachInCity
+          break;
+        case 'getTop3RecurringStudentsPerProfessor':
+          data = await getTop3RecurringStudentsPerProfessor();
+          break;
+        default:
+          break;
       }
-    });
-
-    console.log(result);
-
-    //classer les noms des joueurs par taille croissante
-    joueurs.sort((a: JoueurModel, b: JoueurModel) => {
-      return a.taille - b.taille;
-    });
-
-    joueurs.forEach((value) => {
-      joueursNoms.push(value.nom);
-    });
+      setFilteredData(data || []); // Assign an empty array if data is undefined
+    } catch (error) {
+      console.error(`Error performing ${action}:`, error);
+      toast({ title: `Error performing ${action}`, status: "error", isClosable: true });
+    } finally {
+      setIsLoading(false);
+    }
   };
-  const exemple = () => {
-    //setXWithLog(2)
-    // je ne peux pas changer la valeur de x car c'est un constante
-    // x=2;
-    setX(2);
-
-    //numbers[1] = 18 // est ce que c'est problématique ?
-    //j'aurais dut
-    setNumbers(numbers.map((value, index) => (index === 1 ? 18 : value))); // pas de return
-    // map retourne un booleen
-    //console.error("numbers =")
-    //console.log(numbers)
-
-    //console.error("numbers with foreach")
-    /*numbers.forEach((element) => {
-      console.log(element)
-    })*/
-
-    clients.filter((value) => {
-      return value.prenom.includes("Jean");
-      // value.prenom ==="Jean" que ceux qui ont Jean comme prénom
-      // !value.prenom.includes("Jean") que ceux qui ont pas Jean dans le prenom
-    });
-
-    //je teste et je remarque que clients n'a pas changé
-    //console.log(clients)
-
-    setClients(
-      clients.filter((value) => {
-        //console.log(value.prenom)
-        return value.prenom.includes("Jean");
-        // value.prenom ==="Jean" que ceux qui ont Jean comme prénom
-        // !value.prenom.includes("Jean") que ceux qui ont pas Jean dans le prenom
-      })
-    );
-
-    //console.log(clients)
-  };
-
 
   return (
-    <div className="App">
-      <MatchManagerPage></MatchManagerPage>
-      <input
-        type="button"
-        onClick={() => {
-          exemple();
-        }}
-        value={"Cliquez pour executer"}
-      ></input>
-      <input
-        type="text"
-        onChange={(e) => {
-          setTyping(e.target.value);
-          console.log(typing);
-        }}
-      ></input>
-      <input
-        type="button"
-        onClick={() => {
-          //recupérer les infos des matchs
-          matches.forEach((match) => {
-            //j'ai cahngé la structre de jMMAP
-            console.log(match.ville);
-            console.log(match.date);
-            match.joueurs.forEach((joueur) => {
-              console.log(joueur);
-            });
-            //ou
-            console.log("ou");
-            console.log(match);
-          });
-          console.log(typing);
-          console.log(clients);
-          console.log(numbers);
-        }}
-        value={"voir"}
-      ></input>
-      <input
-        type="button"
-        value={"q4"}
-        onClick={() => {
-          //q4(1);
-          //q5(1);
-          q6()
-        }}
-      ></input>
-    </div>
+    <ChakraProvider>
+      <Box p={4}>
+        <Heading as="h1" mb={4}>School Management App</Heading>
+
+        {/* Action and Filter */}
+        <Stack direction="row" mb={4}>
+          <Select placeholder="Select action" value={action} onChange={(e) => setAction(e.target.value)}>
+            <option value="students">Trouver un étudiant</option>
+            <option value="courseSessions">Trouver une session de cours</option>
+            <option value="studentGroups">Trouver un groupe d'étudiant</option>
+            <option value="professors">Trouver un professeur</option>
+          </Select>
+          <Input placeholder="Filter..." value={filterText} onChange={(e) => setFilterText(e.target.value)} />
+        </Stack>
+
+        {/* Table Display */}
+        {isLoading ? (
+          <Text>Loading...</Text>
+        ) : (
+          <AnimatePresence>
+            <motion.div initial="hidden" animate="visible" exit="hidden">
+              {/* Wrap all DataTable components in a single parent element */}
+              <Box>
+                <DataTable title={action.charAt(0).toUpperCase() + action.slice(1)} data={filteredData} rowVariants={rowVariants} /> {/* Only show the relevant table */}
+              </Box>
+            </motion.div>
+          </AnimatePresence>
+        )}
+      </Box>
+    </ChakraProvider>
   );
 }
-
-
 
 export default App;
