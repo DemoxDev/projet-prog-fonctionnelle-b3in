@@ -1,26 +1,33 @@
 import CourseSessionModel from '../models/courseSessionModel';
 import { StudentModel } from '../models/studentModel';
+import { getStudentGroupById } from './studentGroups.service';
 
-const courseSessionsData: CourseSessionModel[] = require('../data/courseSessions.json'); 
+const courseSessionJson = require('../data/courseSessions.json');
+
+courseSessionJson.forEach((session: CourseSessionModel) => {
+  session.date = new Date(session.date);
+});
+
+export const courseSessionsData: CourseSessionModel[] = courseSessionJson; 
 
 let courseSessions: CourseSessionModel[] = courseSessionsData;
 
-export async function getCourseSessions(): Promise<CourseSessionModel[]> {
+export function getCourseSessions(): CourseSessionModel[] {
   return courseSessions;
 }
 
-export async function getCourseSessionById(id: number): Promise<CourseSessionModel | undefined> {
+export function getCourseSessionById(id: number): CourseSessionModel | undefined {
   return courseSessions.find(session => session.id === id);
 }
 
-export async function createCourseSession(session: CourseSessionModel): Promise<CourseSessionModel> {
+export function createCourseSession(session: CourseSessionModel): CourseSessionModel {
   const newId = Math.max(...courseSessions.map(session => session.id)) + 1; // Generate new ID
   const newSession = { ...session, id: newId };
   courseSessions = [...courseSessions, newSession];
   return newSession;
 }
 
-export async function updateCourseSession(id: number, updatedSession: CourseSessionModel): Promise<CourseSessionModel | undefined> {
+export function updateCourseSession(id: number, updatedSession: CourseSessionModel): CourseSessionModel | undefined {
   const index = courseSessions.findIndex(session => session.id === id);
   if (index !== -1) {
     courseSessions[index] = updatedSession;
@@ -30,56 +37,99 @@ export async function updateCourseSession(id: number, updatedSession: CourseSess
   }
 }
 
-export async function deleteCourseSession(id: number): Promise<void> {
+export function deleteCourseSession(id: number): void {
   courseSessions = courseSessions.filter(session => session.id !== id);
 }
 
-export async function assignProfessorToCourseSession(sessionId: number, professorId: number): Promise<CourseSessionModel | undefined> {
-  const session = await getCourseSessionById(sessionId);
+export function assignProfessorToCourseSession(sessionId: number, professorId: number): CourseSessionModel | undefined {
+  const session = getCourseSessionById(sessionId);
   if (session) {
-    session.professor.id = professorId;
+    session.professor = professorId;
     return session;
   } else {
     return undefined;
   }
 }
 
-export async function getCourseSessionsByCity(city: string): Promise<CourseSessionModel[]>
+export function getCourseSessionsByCity(city: string): CourseSessionModel[]
 {
-  return Promise.resolve(courseSessions.filter(session => session.city === city));
+  return courseSessions.filter(session => session.city === city);
 }
 
 export function getCourseSessionsSortedByDate(): CourseSessionModel[] {
-  return courseSessions.sort((a, b) => a.date.getTime() - b.date.getTime());
+  return courseSessions.sort((a, b) => {
+    if (a.date instanceof Date && b.date instanceof Date) {
+      return a.date.getTime() - b.date.getTime();
+    } else {
+      throw new Error('Invalid date in course session');
+    }
+  });
 }
 
-export function getCourseSessionsByMonth(month: number, year: number): CourseSessionModel[] {
+export function getCourseSessionsByDate(month: number, year: number): CourseSessionModel[] {
   return courseSessions.filter(session => session.date.getMonth() === month && session.date.getFullYear() === year);
 }
 
 export function countStudentsWithMoreThanXCourses(x: number): number {
-  const studentCourseCounts: Record<number, number> = courseSessions.reduce((acc, session) => {
-    session.studentGroup.students.forEach((student: StudentModel) => {
-      acc[student.id] = (acc[student.id] || 0) + 1;
-    });
-    return acc;
-  }, {} as Record<number, number>);
+  const studentCounts: { [key: string]: number } = {};
 
-  return Object.values(studentCourseCounts).filter(count => count > x).length;
-}
-
-export async function assignGroupToCourseSession(sessionId: number, groupId: number): Promise<CourseSessionModel | undefined> {
-  const session = await getCourseSessionById(sessionId);
-  if (session) {
-    session.studentGroup.id = groupId;
-    return session;
-  } else {
-    return undefined;
+  for (const session of courseSessions) {
+    const groupId = session.studentGroup;
+    const group = getStudentGroupById(groupId);
+    if (group) {
+      for (const studentId of group.students) {
+        if (!studentCounts[studentId]) {
+          studentCounts[studentId] = 0;
+        }
+        studentCounts[studentId]++;
+      }
+    }
   }
+
+  let count = 0;
+  for (const studentId in studentCounts) {
+    if (studentCounts[studentId] > x) {
+      count++;
+    }
+  }
+
+  return count;
 }
 
-export function getCourseSessionWithMostStudents(): CourseSessionModel {
-  return courseSessions.reduce((acc, session) => {
-    return session.studentGroup.students.length > acc.studentGroup.students.length ? session : acc;
-  });
+/*
+export function assignGroupToCourseSession(courseSessionId: number, studentGroupId: number) {
+  const courseSession = getCourseSessionById(courseSessionId);
+  const studentGroup = getStudentGroupById(studentGroupId);
+
+  if (!courseSession || !studentGroup) {
+    throw new Error('Course session or student group not found');
+  }
+
+  if (courseSession) {
+    if (studentGroup) {
+      courseSession.studentGroup = studentGroup.id;
+    }
+  }
+  return courseSession;
+}
+*/
+
+export function getCourseSessionWithMostStudents() {
+  let maxStudents = 0;
+  let sessionWithMostStudents = null;
+
+  for (const session of courseSessions) {
+    const groupId = session.studentGroup;
+    const group = getStudentGroupById(groupId);
+    if (group) {
+      const numStudents = group.students.length;
+
+      if (numStudents > maxStudents) {
+        maxStudents = numStudents;
+        sessionWithMostStudents = session;
+      }
+    }
+  }
+
+  return sessionWithMostStudents;
 }

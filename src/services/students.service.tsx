@@ -1,38 +1,39 @@
 import courseSessionModel from '../models/courseSessionModel';
 import { StudentModel } from '../models/studentModel';
 import { getCourseSessionsByCity } from './courseSessions.service';
+import { getStudentGroupById } from './studentGroups.service';
 
 const studentsData: StudentModel[] = require('../data/students.json'); // Replace with your actual JSON file path
 
 let students: StudentModel[] = studentsData; // Initialize with loaded data
 
 
-export async function getStudents(): Promise<StudentModel[]> {
+export function getStudents(): StudentModel[] {
   return students;
 }
 
-export async function getStudentById(id: number): Promise<StudentModel | undefined> {
+export function getStudentById(id: number): StudentModel | undefined {
   return students.find(student => student.id === id);
 }
 
-export async function createStudent(student: StudentModel): Promise<StudentModel> {
+export function createStudent(student: StudentModel): StudentModel {  
   const newId = Math.max(...students.map(student => student.id)) + 1;
   const newStudent = { ...student, id: newId };
   students = [...students, newStudent];
   return newStudent;
 }
 
-export async function updateStudent(id: number, updatedStudent: StudentModel): Promise<StudentModel | undefined> {
+export function updateStudent(id: number, updatedStudent: StudentModel): StudentModel | undefined {
   const index = students.findIndex(student => student.id === id);
   if (index !== -1) {
     students[index] = updatedStudent;
     return updatedStudent;
   } else {
-    return undefined; // Student non trouvé
+    return undefined; // Etudiant non trouvé
   }
 }
 
-export async function deleteStudent(id: number): Promise<void> {
+export function deleteStudent(id: number): void {
   students = students.filter(student => student.id !== id);
 }
 
@@ -47,21 +48,31 @@ export function getStudentsByGender(gender: 'M' | 'F'): StudentModel[] {
 }
   */
 
-export async function getStudentsByCity(city: string): Promise<StudentModel[]>
-{
-  const sessionsByCity: courseSessionModel[] = await getCourseSessionsByCity(city);
-  const studentsByCity: StudentModel[] = [];
-  sessionsByCity.forEach(session => {
-    session.studentGroup.students.forEach(student => {
-      if (!studentsByCity.includes(student)) {
-        studentsByCity.push(student);
+export function getStudentsByCity(city: string): StudentModel[] {
+  const studentsInCity: StudentModel[] = [];
+  const sessions = getCourseSessionsByCity(city);
+  const studentGroups = sessions.map(session => getStudentGroupById(session.studentGroup));
+
+  for (const group of studentGroups) {
+    if(group) {
+      if (group.students) {
+        for (const studentId of group.students) {
+          const student = getStudentById(studentId);
+          if (student) {
+            if (!studentsInCity.includes(student)) {
+              studentsInCity.push(student);
+            }
+          }
+        }
       }
-    });
-  });
-  return studentsByCity;
+    }
+    
+  }
+
+  return studentsInCity;
 }
 
-export async function getStudentsByString(searchString: string): Promise<StudentModel[]>
+export function getStudentsByString(searchString: string): StudentModel[]
 {
   return students.filter(student => student.firstName.includes(searchString) || student.lastName.includes(searchString));
 }
