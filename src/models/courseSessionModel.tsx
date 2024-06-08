@@ -4,8 +4,8 @@ import { StudentGroupModel } from "./studentGroupModel";
 export default interface courseSessionModel {
   id: number;
   name: string;
-  professor: ProfessorModel;
-  studentGroup: StudentGroupModel;
+  professor: number;
+  studentGroup: number;
   city: string;
   date: Date;
 }
